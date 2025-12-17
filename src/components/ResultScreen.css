@@ -118,9 +118,10 @@
   transition: none !important;
 }
 
-.result-card.is-capturing::before,
 .result-card.is-capturing::after {
-  content: none;
+  /* В обычном UI используем cover, но при сохранении это может "обрезать" фон.
+     Для картинки растягиваем SVG по размеру карточки. */
+  background-size: 100% 100%;
 }
 
 @keyframes revealIn {
