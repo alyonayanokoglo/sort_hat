@@ -104,9 +104,13 @@
   z-index: 0;
 }
 
+.result-card.is-capturing {
+  background: rgba(255, 255, 255, 1);
+}
+
+.result-card.is-capturing::before,
 .result-card.is-capturing::after {
-  background-image: none;
-  opacity: 0;
+  content: none;
 }
 
 @keyframes revealIn {

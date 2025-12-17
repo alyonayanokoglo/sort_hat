@@ -56,10 +56,18 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
       const canvas = await html2canvas(cardEl, {
-        backgroundColor: '#1C1C1C',
+        // Делаем непрозрачный белый фон, чтобы в мессенджерах/галерее
+        // не было "серой маски" из-за прозрачности (особенно на скруглениях).
+        backgroundColor: '#FFFFFF',
         scale: Math.max(2, window.devicePixelRatio || 2),
         useCORS: true,
-        logging: false
+        logging: false,
+        // На некоторых платформах html2canvas клонирует DOM до применения
+        // динамических классов — продублируем флаг на клоне.
+        onclone: (doc) => {
+          const cloned = doc.querySelector('.result-card');
+          cloned?.classList.add('is-capturing');
+        }
       });
 
       const shareText = `Распределяющая Шляпа определила меня в ${track.name}!`;
