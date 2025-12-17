@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react';
 import html2canvas from 'html2canvas';
+import JSZip from 'jszip';
 import type { Track } from '../types';
 import { thinkingPhrases } from '../data/tracks';
 import './ResultScreen.css';
@@ -54,6 +55,17 @@ async function canvasToPngFile(canvas: HTMLCanvasElement, filename: string): Pro
   return new File([finalBlob], filename, { type: 'image/png' });
 }
 
+async function fileToZipFile(file: File, zipName: string): Promise<File> {
+  const zip = new JSZip();
+  zip.file(file.name, file);
+  const blob = await zip.generateAsync({
+    type: 'blob',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 }
+  });
+  return new File([blob], zipName, { type: 'application/zip' });
+}
+
 export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
   const [phase, setPhase] = useState<'thinking' | 'reveal'>('thinking');
   const [phraseIndex, setPhraseIndex] = useState(() =>
@@ -61,9 +73,11 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
   );
   const [isSharing, setIsSharing] = useState(false);
   const [isPreparingImage, setIsPreparingImage] = useState(false);
+  const [isPreparingZip, setIsPreparingZip] = useState(false);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [preparedFile, setPreparedFile] = useState<File | null>(null);
   const [preparedUrl, setPreparedUrl] = useState<string | null>(null);
+  const [preparedZipUrl, setPreparedZipUrl] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,6 +101,12 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
       if (preparedUrl) URL.revokeObjectURL(preparedUrl);
     };
   }, [preparedUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (preparedZipUrl) URL.revokeObjectURL(preparedZipUrl);
+    };
+  }, [preparedZipUrl]);
 
   const prepareShareImage = useCallback(async () => {
     if (!cardRef.current) return;
@@ -127,8 +147,34 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
     if (phase !== 'reveal') return;
     setPreparedFile(null);
     setPreparedUrl(null);
+    setPreparedZipUrl(null);
     void prepareShareImage();
   }, [phase, prepareShareImage, track.id]);
+
+  useEffect(() => {
+    // ZIP готовим уже после того как готов PNG.
+    if (!preparedFile) return;
+    let cancelled = false;
+    setIsPreparingZip(true);
+    setPreparedZipUrl(null);
+
+    (async () => {
+      try {
+        const zipFile = await fileToZipFile(preparedFile, `hogwarts-${track.id}.zip`);
+        if (cancelled) return;
+        const url = URL.createObjectURL(zipFile);
+        setPreparedZipUrl(url);
+      } catch (e) {
+        console.error('Failed to build zip:', e);
+      } finally {
+        if (!cancelled) setIsPreparingZip(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [preparedFile, track.id]);
 
   const handleShareResult = useCallback(async () => {
     try {
@@ -184,7 +230,9 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
 
       // 3) Fallback: download/open image.
       if (preparedUrl) {
-        setShareNotice('В этом браузере не открывается меню “Поделиться”. Нажми “Скачать PNG” ниже и прикрепи файл вручную.');
+        setShareNotice(
+          'В этом браузере не открывается меню “Поделиться”. Нажми “Скачать PNG” или “Скачать ZIP” ниже и прикрепи файл вручную.'
+        );
         return;
       }
 
@@ -282,6 +330,22 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
             >
               Скачать PNG
             </a>
+          )}
+          {preparedZipUrl && (
+            <a
+              className="action-btn download-link"
+              href={preparedZipUrl}
+              download={`hogwarts-${track.id}.zip`}
+              target="_blank"
+              rel="noopener"
+            >
+              Скачать ZIP
+            </a>
+          )}
+          {isPreparingZip && (
+            <div className="share-notice" role="status">
+              Готовлю ZIP…
+            </div>
           )}
           {shareNotice && (
             <div className="share-notice" role="status">
