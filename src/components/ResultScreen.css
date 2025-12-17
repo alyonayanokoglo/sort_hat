@@ -113,6 +113,16 @@
   filter: none !important;
 }
 
+.result-card.is-capturing .card-inner {
+  /* В PNG мы прячем кнопку "Поделиться", поэтому нижний padding
+     + margin у списка выглядят как "белый блок". Подрезаем низ. */
+  padding-bottom: 1.25rem;
+}
+
+.result-card.is-capturing .result-skills {
+  margin-bottom: 0;
+}
+
 .result-card.is-capturing * {
   animation: none !important;
   transition: none !important;
