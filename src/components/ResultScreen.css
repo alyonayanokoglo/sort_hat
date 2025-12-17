@@ -205,6 +205,13 @@
   transition: all 0.3s ease;
 }
 
+.download-button:disabled {
+  opacity: 0.75;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
 .download-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 20px var(--track-shadow, rgba(37, 99, 235, 0.4));
@@ -213,7 +220,8 @@
 /* Actions */
 .result-actions {
   display: flex;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.5rem;
   max-width: 380px;
   width: 100%;
 }
@@ -235,4 +243,14 @@
 .action-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.share-notice {
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: rgba(28, 28, 28, 0.8);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 14px;
+  padding: 0.75rem 0.9rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
 }

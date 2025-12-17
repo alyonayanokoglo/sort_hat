@@ -28,6 +28,8 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
   const [phraseIndex, setPhraseIndex] = useState(() =>
     Math.floor(Math.random() * thinkingPhrases.length)
   );
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -50,6 +52,9 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
     const cardEl = cardRef.current;
 
     try {
+      setIsSharing(true);
+      setShareNotice(null);
+
       // html2canvas иногда странно рендерит SVG-подложку и CSS-переменные,
       // из-за чего картинка получается "синей". На время снимка отключаем подложку.
       cardEl.classList.add('is-capturing');
@@ -71,9 +76,11 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
       });
 
       const shareText = `Распределяющая Шляпа определила меня в ${track.name}!`;
+      const shareTitle = 'Sorting Hat';
+      const shareUrl = window.location.href;
 
       const nav = navigator as Navigator & {
-        share?: (data: { title?: string; text?: string; files?: File[] }) => Promise<void>;
+        share?: (data: { title?: string; text?: string; url?: string; files?: File[] }) => Promise<void>;
         canShare?: (data: { files?: File[] }) => boolean;
       };
 
@@ -84,23 +91,62 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
         }, 'image/png');
       });
 
+      // 1) Prefer native share with file (works in many mobile browsers).
       if (file && nav.share && (!nav.canShare || nav.canShare({ files: [file] }))) {
-        await nav.share({
-          text: shareText,
-          files: [file]
-        });
+        try {
+          await nav.share({
+            title: shareTitle,
+            text: shareText,
+            files: [file]
+          });
+          return;
+        } catch (e) {
+          // Если пользователь отменил — ничего не показываем.
+          if (e instanceof DOMException && e.name === 'AbortError') return;
+          // На некоторых Android/WebView нельзя шарить файлы — попробуем текст/ссылку ниже.
+        }
+      }
+
+      // 2) Fallback: share text + link (often works in Android WebView where files don't).
+      if (nav.share) {
+        try {
+          await nav.share({
+            title: shareTitle,
+            text: shareText,
+            url: shareUrl
+          });
+          return;
+        } catch (e) {
+          if (e instanceof DOMException && e.name === 'AbortError') return;
+        }
+      }
+
+      // 3) Fallback: download/open image.
+      // dataURL на Android часто ломается/не скачивается, поэтому предпочтительнее blob URL.
+      if (file) {
+        const objectUrl = URL.createObjectURL(file);
+        const link = document.createElement('a');
+        link.download = `hogwarts-${track.id}.png`;
+        link.href = objectUrl;
+        link.rel = 'noopener';
+        link.target = '_blank';
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
+        setShareNotice('Не удалось открыть меню “Поделиться”. Картинка открыта/скачана — прикрепи её в чат.');
         return;
       }
 
-      // Fallback: download image
       const link = document.createElement('a');
       link.download = `hogwarts-${track.id}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
+      setShareNotice('Не удалось открыть меню “Поделиться”. Картинка скачана — прикрепи её в чат.');
     } catch (error) {
       console.error('Failed to generate image:', error);
+      setShareNotice('Не получилось подготовить картинку. Попробуй ещё раз.');
     } finally {
       cardEl.classList.remove('is-capturing');
+      setIsSharing(false);
     }
   }, [track]);
 
@@ -164,9 +210,10 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
             <button
               className="download-button"
               onClick={handleShareResult}
+              disabled={isSharing}
               style={{ background: track.gradient }}
             >
-              Поделиться результатом
+              {isSharing ? 'Готовлю картинку…' : 'Поделиться результатом'}
             </button>
           </div>
         </div>
@@ -178,6 +225,11 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
           <button className="action-btn" onClick={onRestart}>
             Ещё раз
           </button>
+          {shareNotice && (
+            <div className="share-notice" role="status">
+              {shareNotice}
+            </div>
+          )}
         </div>
       )}
     </div>
