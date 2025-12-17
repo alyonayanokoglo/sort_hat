@@ -106,6 +106,16 @@
 
 .result-card.is-capturing {
   background: rgba(255, 255, 255, 1);
+  /* Убираем "серую маску" от промежуточных состояний анимаций/трансформаций */
+  animation: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+.result-card.is-capturing * {
+  animation: none !important;
+  transition: none !important;
 }
 
 .result-card.is-capturing::before,

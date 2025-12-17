@@ -55,11 +55,6 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
       setIsSharing(true);
       setShareNotice(null);
 
-      // html2canvas иногда странно рендерит SVG-подложку и CSS-переменные,
-      // из-за чего картинка получается "синей". На время снимка отключаем подложку.
-      cardEl.classList.add('is-capturing');
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
       const canvas = await html2canvas(cardEl, {
         // Делаем непрозрачный белый фон, чтобы в мессенджерах/галерее
         // не было "серой маски" из-за прозрачности (особенно на скруглениях).
@@ -67,11 +62,14 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
         scale: Math.max(2, window.devicePixelRatio || 2),
         useCORS: true,
         logging: false,
-        // На некоторых платформах html2canvas клонирует DOM до применения
-        // динамических классов — продублируем флаг на клоне.
+        // Все правки применяем только к DOM-клону, чтобы не мигало в UI.
         onclone: (doc) => {
           const cloned = doc.querySelector('.result-card');
           cloned?.classList.add('is-capturing');
+          // Кнопку "поделиться" не включаем в итоговую картинку
+          // (иначе на Android может попасть текст "Готовлю картинку...").
+          const clonedBtn = cloned?.querySelector('.download-button') as HTMLElement | null;
+          if (clonedBtn) clonedBtn.style.display = 'none';
         }
       });
 
@@ -145,7 +143,6 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
       console.error('Failed to generate image:', error);
       setShareNotice('Не получилось подготовить картинку. Попробуй ещё раз.');
     } finally {
-      cardEl.classList.remove('is-capturing');
       setIsSharing(false);
     }
   }, [track]);
