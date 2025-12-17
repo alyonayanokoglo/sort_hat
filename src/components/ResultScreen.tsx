@@ -11,6 +11,8 @@ interface ResultScreenProps {
 
 const PHRASE_CHANGE_MS = 1200;
 const REVEAL_DELAY_MS = 6500;
+const CAPTURE_SCALE = 2;
+const CANVAS_TO_BLOB_TIMEOUT_MS = 15_000;
 
 function hexToRgba(hex: string, alpha: number) {
   const cleaned = hex.replace('#', '').trim();
@@ -23,13 +25,45 @@ function hexToRgba(hex: string, alpha: number) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [meta, data] = dataUrl.split(',');
+  const mime = meta?.match(/data:(.*?);base64/)?.[1] || 'application/octet-stream';
+  const bin = atob(data);
+  const len = bin.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i += 1) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+async function canvasToPngFile(canvas: HTMLCanvasElement, filename: string): Promise<File> {
+  // Android/старые WebView иногда "вечно" ждут toBlob — ставим таймаут и fallback.
+  const toBlob = () =>
+    new Promise<Blob | null>((resolve) => {
+      if (!canvas.toBlob) return resolve(null);
+      canvas.toBlob((blob) => resolve(blob), 'image/png');
+    });
+
+  const blob = await Promise.race<Blob | null>([
+    toBlob(),
+    new Promise<Blob | null>((resolve) =>
+      window.setTimeout(() => resolve(null), CANVAS_TO_BLOB_TIMEOUT_MS)
+    )
+  ]);
+
+  const finalBlob = blob ?? dataUrlToBlob(canvas.toDataURL('image/png'));
+  return new File([finalBlob], filename, { type: 'image/png' });
+}
+
 export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
   const [phase, setPhase] = useState<'thinking' | 'reveal'>('thinking');
   const [phraseIndex, setPhraseIndex] = useState(() =>
     Math.floor(Math.random() * thinkingPhrases.length)
   );
   const [isSharing, setIsSharing] = useState(false);
+  const [isPreparingImage, setIsPreparingImage] = useState(false);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
+  const [preparedFile, setPreparedFile] = useState<File | null>(null);
+  const [preparedUrl, setPreparedUrl] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,31 +81,59 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
     };
   }, [phase]);
 
-  const handleShareResult = useCallback(async () => {
+  useEffect(() => {
+    // Освобождаем blob URL при смене/размонтаже.
+    return () => {
+      if (preparedUrl) URL.revokeObjectURL(preparedUrl);
+    };
+  }, [preparedUrl]);
+
+  const prepareShareImage = useCallback(async () => {
     if (!cardRef.current) return;
     const cardEl = cardRef.current;
 
+    setIsPreparingImage(true);
     try {
-      setIsSharing(true);
-      setShareNotice(null);
-
       const canvas = await html2canvas(cardEl, {
-        // Делаем непрозрачный белый фон, чтобы в мессенджерах/галерее
-        // не было "серой маски" из-за прозрачности (особенно на скруглениях).
         backgroundColor: '#FFFFFF',
-        scale: Math.max(2, window.devicePixelRatio || 2),
+        scale: CAPTURE_SCALE,
         useCORS: true,
         logging: false,
-        // Все правки применяем только к DOM-клону, чтобы не мигало в UI.
         onclone: (doc) => {
           const cloned = doc.querySelector('.result-card');
           cloned?.classList.add('is-capturing');
-          // Кнопку "поделиться" не включаем в итоговую картинку
-          // (иначе на Android может попасть текст "Готовлю картинку...").
           const clonedBtn = cloned?.querySelector('.download-button') as HTMLElement | null;
           if (clonedBtn) clonedBtn.style.display = 'none';
         }
       });
+
+      const file = await canvasToPngFile(canvas, `hogwarts-${track.id}.png`);
+      setPreparedFile(file);
+
+      const objectUrl = URL.createObjectURL(file);
+      setPreparedUrl(objectUrl);
+    } catch (e) {
+      console.error('Failed to pre-generate image:', e);
+      setPreparedFile(null);
+      setPreparedUrl(null);
+    } finally {
+      setIsPreparingImage(false);
+    }
+  }, [track.id]);
+
+  useEffect(() => {
+    // Важно для Android: готовим картинку заранее, иначе "user gesture"
+    // успевает протухнуть и share/download блокируется.
+    if (phase !== 'reveal') return;
+    setPreparedFile(null);
+    setPreparedUrl(null);
+    void prepareShareImage();
+  }, [phase, prepareShareImage, track.id]);
+
+  const handleShareResult = useCallback(async () => {
+    try {
+      setIsSharing(true);
+      setShareNotice(null);
 
       const shareText = `Распределяющая Шляпа определила меня в ${track.name}!`;
       const shareTitle = 'Sorting Hat';
@@ -82,15 +144,16 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
         canShare?: (data: { files?: File[] }) => boolean;
       };
 
-      const file: File | null = await new Promise((resolve) => {
-        canvas.toBlob((blob) => {
-          if (!blob) return resolve(null);
-          resolve(new File([blob], `hogwarts-${track.id}.png`, { type: 'image/png' }));
-        }, 'image/png');
-      });
+      // На Android важно не делать долгий await до вызова share/download.
+      // Поэтому здесь используем заранее подготовленный файл.
+      const file = preparedFile;
+      if (!file) {
+        setShareNotice(isPreparingImage ? 'Готовлю картинку… попробуй ещё раз через пару секунд.' : 'Готовлю картинку…');
+        return;
+      }
 
       // 1) Prefer native share with file (works in many mobile browsers).
-      if (file && nav.share && (!nav.canShare || nav.canShare({ files: [file] }))) {
+      if (nav.share && (!nav.canShare || nav.canShare({ files: [file] }))) {
         try {
           await nav.share({
             title: shareTitle,
@@ -120,32 +183,19 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
       }
 
       // 3) Fallback: download/open image.
-      // dataURL на Android часто ломается/не скачивается, поэтому предпочтительнее blob URL.
-      if (file) {
-        const objectUrl = URL.createObjectURL(file);
-        const link = document.createElement('a');
-        link.download = `hogwarts-${track.id}.png`;
-        link.href = objectUrl;
-        link.rel = 'noopener';
-        link.target = '_blank';
-        link.click();
-        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
-        setShareNotice('Не удалось открыть меню “Поделиться”. Картинка открыта/скачана — прикрепи её в чат.');
+      if (preparedUrl) {
+        setShareNotice('В этом браузере не открывается меню “Поделиться”. Нажми “Скачать PNG” ниже и прикрепи файл вручную.');
         return;
       }
 
-      const link = document.createElement('a');
-      link.download = `hogwarts-${track.id}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      setShareNotice('Не удалось открыть меню “Поделиться”. Картинка скачана — прикрепи её в чат.');
+      setShareNotice('В этом браузере не открывается меню “Поделиться”.');
     } catch (error) {
       console.error('Failed to generate image:', error);
       setShareNotice('Не получилось подготовить картинку. Попробуй ещё раз.');
     } finally {
       setIsSharing(false);
     }
-  }, [track]);
+  }, [isPreparingImage, preparedFile, preparedUrl, track]);
 
   const trackStyleVars: CSSProperties = {
     ['--track-color' as unknown as keyof CSSProperties]: hexToRgba(track.color, 1),
@@ -210,7 +260,7 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
               disabled={isSharing}
               style={{ background: track.gradient }}
             >
-              {isSharing ? 'Готовлю картинку…' : 'Поделиться результатом'}
+              {isSharing ? 'Открываю…' : isPreparingImage ? 'Готовлю картинку…' : 'Поделиться результатом'}
             </button>
           </div>
         </div>
@@ -222,6 +272,17 @@ export default function ResultScreen({ track, onRestart }: ResultScreenProps) {
           <button className="action-btn" onClick={onRestart}>
             Ещё раз
           </button>
+          {preparedUrl && (
+            <a
+              className="action-btn download-link"
+              href={preparedUrl}
+              download={`hogwarts-${track.id}.png`}
+              target="_blank"
+              rel="noopener"
+            >
+              Скачать PNG
+            </a>
+          )}
           {shareNotice && (
             <div className="share-notice" role="status">
               {shareNotice}
