@@ -9,13 +9,11 @@ export default function IntroScreen({ onStart }: IntroScreenProps) {
     <div className="intro-screen">
       <div className="intro-card">
         <div className="card-content">
-          <div className="intro-cta-image-wrap">
-            <img
-              className="intro-cta-image"
-              src="/cat_cta.png"
-              alt="Волшебный кот"
-            />
-          </div>
+          <img
+            className="intro-cta-image"
+            src="/cat_cta.png"
+            alt="Волшебный кот"
+          />
 
           <h2 className="intro-heading">
             Дорогой волшебник, этот час настал!
