@@ -1,0 +1,134 @@
+.intro-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.intro-card {
+  max-width: 360px;
+  width: 100%;
+  background: white;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.2);
+  animation: cardAppear 0.6s ease-out;
+}
+
+@keyframes cardAppear {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.card-content {
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.intro-cta-image-wrap {
+  background: #1c1c1c;
+  border-radius: 18px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 0 0.9rem;
+}
+
+.intro-cta-image {
+  width: 220px;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0;
+}
+
+.intro-heading {
+  font-family: 'Bounded', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: #1C1C1C;
+  margin: 0 0 1rem;
+  line-height: 1.25;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.intro-text {
+  margin-bottom: 1rem;
+}
+
+.intro-text p {
+  font-size: 13px;
+  color: rgba(28, 28, 28, 1);
+  font-weight: 500;
+  margin: 0 0 0.6rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.intro-text p:nth-child(2) {
+  font-weight: 500;
+}
+
+.intro-text p:last-child {
+  margin-bottom: 0;
+  color: rgb(77, 77, 77);
+  font-size: 11px;
+}
+
+.start-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.5rem;
+  background: #0F8EFF;
+  border: none;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(15, 142, 255, 0.35);
+}
+
+.start-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(15, 142, 255, 0.45);
+}
+
+.start-button:active {
+  transform: translateY(0);
+}
+
+.button-icon {
+  font-size: 1.3rem;
+}
+
+@media (max-width: 420px) {
+  .intro-card {
+    border-radius: 24px;
+    margin: 0 0.5rem;
+  }
+  
+  .card-content {
+    padding: 1.25rem 1.5rem 1.75rem;
+  }
+  
+  .intro-title {
+    font-size: 1.5rem;
+  }
+  
+  .intro-text p {
+    font-size: 0.9rem;
+  }
+}

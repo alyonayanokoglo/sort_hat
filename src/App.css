@@ -1,0 +1,41 @@
+/* App Layout */
+.app {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.main-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Background Effects */
+.background-effects {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: #1C1C1C;
+}
+
+.bg-gradient {
+  position: absolute;
+  inset: 0;
+  background-image: url('/BG.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.5;
+}
+
+.bg-stars {
+  display: none;
+}
+
+.bg-glow {
+  display: none;
+}

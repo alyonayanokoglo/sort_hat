@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
+
+@font-face {
+  font-family: 'Bounded';
+  src: url('/fonts/Bounded-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
+  background: #1C1C1C;
+  color: #f1f5f9;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* Selection styling */
+::selection {
+  background: rgba(74, 159, 232, 0.3);
+  color: #1a365d;
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
